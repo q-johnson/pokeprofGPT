@@ -10,7 +10,7 @@ PokéProfGPT is an innovative tool plug-in for Open WebUI designed to seamlessly
 - An installation of Open WebUI >= v0.6.0
 
 #### Tool Installation:
-- Download the `tool-pokeprofGPT.json` file in the /tools directory.
+- Download the `tool-pokeprofGPT.json` file in the `/tools/` directory.
 - In Open WebUI navigate to Workspace > Tools tab
 - Click Import Tool
 - Upload the `tool-pokeprofGPT.json` file.

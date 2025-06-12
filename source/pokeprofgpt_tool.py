@@ -3,7 +3,7 @@ title: PokéProfGPT Tool
 description: A tool for Open WebUI that integrates with the PokéAPI to provide detailed Pokémon information.
 current-functions:
     - name: get_pokemon_details
-        description: Fetches detailed information about a Pokémon, including stats, abilities, and evolution chain.
+        description: Fetches detailed information about a Pokémon, including sprites, stats, abilities, and evolution chain.
     - name: get_ability_details
         description: Fetches details about a specific Pokémon ability, including its effect and associated Pokémon.
     - name: get_pokemon_location
@@ -11,7 +11,7 @@ current-functions:
     - name: get_pokemon_movelist
         description: Fetches the movelist of a Pokémon, grouped by version group and learn method.
 author: q-johnson
-version: 0.0.7
+version: 0.0.8
 license: MIT License
 """
 
@@ -82,6 +82,12 @@ class Tools:
         processed_data = {
             "name": raw_data_pokemon.get("name"),
             "id": raw_data_pokemon.get("id"),
+            "sprite": raw_data_pokemon.get("sprites", {}).get("front_default", "No sprite available"),
+            "sprite_male": raw_data_pokemon.get("sprites", {}).get("front_male") or raw_data_pokemon.get("sprites", {}).get("front_default", "No sprite available"),
+            "sprite_female": raw_data_pokemon.get("sprites", {}).get("front_female") or raw_data_pokemon.get("sprites", {}).get("front_default", "No sprite available"),
+            "sprite_shiny": raw_data_pokemon.get("sprites", {}).get("front_shiny", "No shiny sprite available"),
+            "sprite_shiny_male": raw_data_pokemon.get("sprites", {}).get("front_shiny_male") or raw_data_pokemon.get("sprites", {}).get("front_shiny", "No shiny sprite available"),
+            "sprite_shiny_female": raw_data_pokemon.get("sprites", {}).get("front_shiny_female") or raw_data_pokemon.get("sprites", {}).get("front_shiny", "No shiny sprite available"),
             "height": f"{raw_data_pokemon.get('height') / 10:.1f} meters",
             "weight": f"{raw_data_pokemon.get('weight') / 10:.1f} kg",
             "stats": {stat["stat"]["name"]: stat["base_stat"] for stat in raw_data_pokemon.get("stats", [])},
@@ -106,22 +112,28 @@ class Tools:
 
 
         return f"""
-You are a professor who studies Pokémon. Give a fun description of the Pokémon {processed_data['name']}. Include the following details:
+You are a professor who studies Pokémon. Give an analytical description of the Pokémon {processed_data['name']}. Always include the following details:
+Sprite: ![{processed_data['name']} Sprite]({processed_data['sprite']})
 ID: {processed_data['id']}
 Height: {processed_data['height']}
 Weight: {processed_data['weight']}
 Abilities: {', '.join(processed_data['abilities'])}
-Type: {', '.join(processed_data['type'])} 
+Type: {', '.join(processed_data['type'])}  *Note: Pokémon can have multiple types, which affect their strengths and weaknesses in battles.*
 History and Pokémon Descriptions: {chr(10).join(processed_data['flavor_text_descriptions'])} *Note: History and Pokémon descriptions are often poetic and hyperbolic and may not be literal. As a professor in Pokémon studies, you should consider the broader implications of these descriptions.*
 Base Stat Total: {sum(processed_data['stats'].values())}
 Stats: {', '.join([f"{stat_name}: {stat_value}" for stat_name, stat_value in processed_data['stats'].items()])}
 
-Include the evolution chain of this Pokémon:
+Include the evolution chain of this Pokémon. If specific evolution conditions are known, include them in the description - especially if it requires a specific item, held item, time of day, or happiness level. If the Pokémon has multiple evolutions, list them all:
 {processed_evolution_data['base_form']} evolves into {', '.join([evo['name'] for evo in processed_evolution_data['evolutions']])} based on the following conditions:
 {chr(10).join([f"- {evo['name']} (Trigger: {evo['trigger']}, Min Level: {evo.get('min_level', 'N/A')}, Item: {evo.get('item', 'N/A')}, Time of Day: {evo.get('time_of_day', 'N/A')}, Min Happiness: {evo.get('min_happiness', 'N/A')}, Held Item: {evo.get('held_item', 'N/A')})" for evo in processed_evolution_data['evolutions']])}
 
-Include the additional information about the Pokémon, **only** if it is relevant to the query. Otherwise do not include the additional information:
-Egg Groups: {', '.join(processed_data['egg_groups'])} *Note: Egg groups are categories that determine which Pokémon can breed with each other.*
+Include the additional information about the Pokémon, **only** if it is specifically requested. Otherwise do not include the additional information:
+Sprite (MALE): ![{processed_data['name']} Sprite (MALE)]({processed_data['sprite_male']})
+Sprite (FEMALE): ![{processed_data['name']} Sprite (FEMALE)]({processed_data['sprite_female']})
+Shiny Sprite: ![{processed_data['name']} Shiny Sprite]({processed_data['sprite_shiny']})
+Shiny Sprite (MALE): ![{processed_data['name']} Shiny Sprite (MALE)]({processed_data['sprite_shiny_male']})
+Shiny Sprite (FEMALE): ![{processed_data['name']} Shiny Sprite (FEMALE)]({processed_data['sprite_shiny_female']})
+Egg Groups Memberships: {', '.join(processed_data['egg_groups'])} *Note: Egg groups are categories that determine which Pokémon can breed with each other. A Pokémon can belong to multiple egg groups.*
 Legendary Status: {'Yes' if processed_data['is_legendary'] else 'No'} *Note: Only a few Pokémon are classified as legendary. Do not discuss the legendary status of any Pokémon that is not classified as such.*
 Mythical Status: {'Yes' if processed_data['is_mythical'] else 'No'} *Note: Mythical Pokémon are extremely rare and often event-exclusive. Do not discuss the mythical status of any Pokémon that is not classified as such.*
 Baby Status: {'Yes' if processed_data['is_baby'] else 'No'} *Note: Baby Pokémon are often pre-evolutions of other Pokémon and are typically smaller and less powerful. Do not discuss the baby status of any Pokémon that is not classified as such.*
@@ -197,6 +209,30 @@ The Pokémon can be found in these locations across various games:
 Based on this information, describe where players might encounter this Pokémon in the wild. Do not summarize locational data. Offer all locations for every region and game.
 """
 
+    def get_egg_groups(self, egg_group_name: str):
+        """
+        Fetches details of an egg group by its name.
+        :param egg_group_name: Name of the egg group (case-insensitive). Possible values include "monster", "water-1", "field", "ground", etc.
+        :return: JSON response containing egg group details.
+        """
+        formatted_name = format_api_param(egg_group_name)
+        endpoint = f"egg-group/{formatted_name}"
+        raw_data = get_pokeapi(endpoint)
+
+        # Process and return the relevant egg group details
+        processed_data = {
+            "name": raw_data.get("name"),
+            "pokemon_in_group": [pokemon["name"] for pokemon in raw_data.get("pokemon_species", [])]
+        }
+        
+        return f"""
+You are a Pokémon breeding expert. Describe the egg group {processed_data['name']} in detail. Include the following information:
+Egg Group Name: {processed_data['name'].replace('-', ' ').title()}
+Pokémon in this egg group:
+{', '.join(processed_data['pokemon_in_group'])}
+
+"""
+    
     def get_pokemon_movelist(self, pokemon_name: str):
         """
         Fetches the movelist of a Pokémon by its name, grouped by version group.

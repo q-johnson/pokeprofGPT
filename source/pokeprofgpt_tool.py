@@ -60,6 +60,34 @@ def process_evolution_chain(chain_data, evolution_list):
         # Recursively process the next evolution stage
         process_evolution_chain(evolution, evolution_list)
 
+def get_pokemon_alternate_forms(pokemon_form_name: str):
+    """
+    Fetches alternate forms of a Pokémon by its name.
+    :param pokemon_name: Name of the Pokémon (case-insensitive).
+    :return: JSON response containing alternate forms.
+    """
+    formatted_name = format_api_param(pokemon_form_name)
+    endpoint = f"pokemon-form/{formatted_name}"
+    raw_data = get_pokeapi(endpoint)
+
+    # Process and return the relevant alternate forms
+    form_data = {
+        "name": raw_data.get("name"),
+        "is_default": raw_data.get("is_default", False),
+        "is_battle_only": raw_data.get("is_battle_only", False),
+        "is_mega": raw_data.get("is_mega", False),
+        "sprites": {
+            "front_default": raw_data.get("sprites", {}).get("front_default", "No sprite available"),
+            "front_female": raw_data.get("sprites", {}).get("front_female", "No sprite available"),
+            "front_male": raw_data.get("sprites", {}).get("front_male", "No sprite available"),
+            "front_shiny": raw_data.get("sprites", {}).get("front_shiny", "No sprite available"),
+            "front_shiny_female": raw_data.get("sprites", {}).get("front_shiny_female", "No sprite available"),
+            "front_shiny_male": raw_data.get("sprites", {}).get("front_shiny_male", "No sprite available"),
+        },
+        "pokemon_type": [type_info["type"]["name"] for type_info in raw_data.get("types", [])]
+    }
+    return form_data
+
 class Tools:
 
     def __init__(self):
@@ -100,6 +128,7 @@ class Tools:
             "is_baby": raw_data_species.get("is_baby", False),
             "flavor_text_descriptions": {entry["flavor_text"] for entry in raw_data_species.get("flavor_text_entries", []) if entry["language"]["name"] == "en"},
             "egg_groups": [egg_group["name"] for egg_group in raw_data_species.get("egg_groups", [])],
+            "forms": [forms["name"] for forms in raw_data_species.get("forms", [])]
         }
 
         endpoint_evolution = f"evolution-chain/{raw_data_species.get('evolution_chain', {}).get('url', '').split('/')[-2]}"
@@ -112,6 +141,18 @@ class Tools:
         }
         process_evolution_chain(raw_data_evolution.get("chain", {}), processed_evolution_data["evolutions"])
 
+        # Process alternate forms
+        alternate_forms_data = []
+        for form_name in processed_data['forms']:
+            form_info = get_pokemon_alternate_forms(form_name)
+            alternate_forms_data.append({
+                "name": form_info["name"],
+                "is_default": form_info["is_default"],
+                "is_battle_only": form_info["is_battle_only"],
+                "is_mega": form_info["is_mega"],
+                "sprites": form_info["sprites"],
+                "pokemon_type": form_info["pokemon_type"]
+            })
 
         return f"""
 You are a professor who studies Pokémon. Give an analytical description of the Pokémon {processed_data['name']}. Always include the following details:
@@ -139,6 +180,7 @@ Egg Groups Memberships: {', '.join(processed_data['egg_groups'])} *Note: Egg gro
 Legendary Status: {'Yes' if processed_data['is_legendary'] else 'No'} *Note: Only a few Pokémon are classified as legendary. Do not discuss the legendary status of any Pokémon that is not classified as such.*
 Mythical Status: {'Yes' if processed_data['is_mythical'] else 'No'} *Note: Mythical Pokémon are extremely rare and often event-exclusive. Do not discuss the mythical status of any Pokémon that is not classified as such.*
 Baby Status: {'Yes' if processed_data['is_baby'] else 'No'} *Note: Baby Pokémon are often pre-evolutions of other Pokémon and are typically smaller and less powerful. Do not discuss the baby status of any Pokémon that is not classified as such.*
+Alternate Forms: {', '.join(processed_data['forms'])} *Note: Some Pokémon have alternate forms that can change their appearance, stats, or abilities.
 """
     
     def get_ability_details(self, ability_name: str):

@@ -10,6 +10,8 @@ current-functions:
         description: Retrieves locations where a Pokémon can be found, organized by game version.
     - name: get_pokemon_movelist
         description: Fetches the movelist of a Pokémon, grouped by version group and learn method.
+    - name: get_item
+        description: Retrieves details about a specific item, including its effects and associated Pokémon.
 author: q-johnson
 version: 0.0.8
 license: MIT License
@@ -287,4 +289,65 @@ Pokémon in this egg group:
 Provide information about the moves that {pokemon_name.title()} can learn across different game versions. If there is a specific game version asked about, include only the moves available in that version. If no game version is specified, provide all moves across all versions.
 {chr(10).join(markdown_tables)}
 
+"""
+
+
+    def get_item(self, item_name: str):
+        """
+        Fetches details of an item by its name.
+        :param item_name: Name of the item (case-insensitive).
+        :return: JSON response containing item details.
+        """
+        formatted_name = format_api_param(item_name)
+        endpoint = f"item/{formatted_name}"
+        raw_data = get_pokeapi(endpoint)
+
+        # Process and return the relevant item details
+        processed_data = {
+            "id": raw_data.get("id"),
+            "name": raw_data.get("name"),
+            "cost": raw_data.get("cost"),
+            "fling_power": raw_data.get("fling_power"),
+            "fling_effect": raw_data.get("fling_effect", {}).get("name") if raw_data.get("fling_effect") else None,
+            "attributes": [attr.get("name") for attr in raw_data.get("attributes", []) if attr],
+            "category": raw_data.get("category", {}).get("name") if raw_data.get("category") else None,
+            "effect": next((entry.get("effect", "") for entry in raw_data.get("effect_entries", [])
+                            if entry.get("language", {}).get("name") == "en"),
+                          "No effect description available in English."),
+            "short_effect": next((entry.get("short_effect", "") for entry in raw_data.get("effect_entries", [])
+                                  if entry.get("language", {}).get("name") == "en"),
+                                "No short effect available in English."),
+            "flavor_text": next((entry.get("text", "") for entry in raw_data.get("flavor_text_entries", [])
+                                 if entry.get("language", {}).get("name") == "en"),
+                                "No flavor text available in English."),
+            "game_indices": [gi.get("game_index") for gi in raw_data.get("game_indices", []) if gi],
+            "generation": [gi.get("generation", {}).get("name") for gi in raw_data.get("game_indices", []) if gi.get("generation")],
+            "names": [name.get("name") for name in raw_data.get("names", []) if name.get("language", {}).get("name") == "en"],
+            "sprites": raw_data.get("sprites", {}).get("default") if raw_data.get("sprites") else None,
+            "held_by_pokemon": [
+                {
+                    "pokemon": held.get("pokemon", {}).get("name") if held.get("pokemon") else None,
+                    "version_details": [
+                        {
+                            "rarity": vd.get("rarity"),
+                            "version": vd.get("version", {}).get("name") if vd.get("version") else None
+                        } for vd in held.get("version_details", []) if vd.get("version")
+                    ] if held.get("version_details") else []
+                } for held in raw_data.get("held_by_pokemon", []) if held
+            ],
+            "baby_trigger_for": raw_data.get("baby_trigger_for", {}).get("url") if raw_data.get("baby_trigger_for") else None
+        }
+        return f"""
+You are a Pokémon item expert. Describe the item {processed_data['name']} in detail. ALWAYS include the following information:
+Name: {processed_data['name'].replace('-', ' ').title()} 
+Sprite: ![{processed_data['name']} Sprite]({processed_data['sprites']})
+Effect: {processed_data['effect']} *Note: The effect describes what the item does when used in battles or other contexts.*
+Short Effect: {processed_data['short_effect']} *Note: The short effect is a brief summary of the item's effect.*
+Flavor Text: {processed_data['flavor_text']} *Note: The flavor text provides a description of the item as it appears in the game.*
+Cost: {processed_data['cost']} *Note: The cost is the price of the item in Poké Dollars.*
+Attributes: {', '.join(processed_data['attributes']) if processed_data['attributes'] else 'None'} *Note: Attributes provide additional information about the item, such as whether it can be used in battles or is a key item.*
+
+*Note: The following information is optional and should only be included if specifically requested. Otherwise, do not include this information.*
+Held By Pokémon: {', '.join([f"{held['pokemon']} (Rarity: {held['version_details'][0]['rarity']}, Version: {held['version_details'][0]['version']})" for held in processed_data['held_by_pokemon']]) if processed_data['held_by_pokemon'] else 'No Pokémon hold this item.'}
+Baby Trigger For: {processed_data['baby_trigger_for'] if processed_data['baby_trigger_for'] else 'N/A'} *Note: This indicates if the item is used to trigger the baby form of a Pokémon.*
 """

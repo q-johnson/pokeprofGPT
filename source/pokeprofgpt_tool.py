@@ -173,17 +173,24 @@ class Tools:
                 "pokemon_type": form_info["pokemon_type"]
             })
 
+        # Stats Table
+        stats_header = "| " + " | ".join([stat_name.replace("-", " ").title() for stat_name in processed_data['stats'].keys()]) + " | Total |"
+        stats_separator = "|" + "---|" * (len(processed_data['stats']) + 1)
+        stats_values = "| " + " | ".join([str(stat_value) for stat_value in processed_data['stats'].values()]) + f" | {sum(processed_data['stats'].values())} |"
+
         return f"""
 You are a professor who studies Pokémon. Give an analytical description of the Pokémon {processed_data['name']}. Always include the following details:
-Sprite: ![{processed_data['name']} Sprite]({processed_data['sprite']})
-ID: {processed_data['id']}
-Height: {processed_data['height']}
-Weight: {processed_data['weight']}
-Abilities: {', '.join([f"{ability['name']} (Hidden: {ability['hidden']})" for ability in processed_data['abilities']])} *Note: Abilities can be hidden or regular. Hidden abilities are rare abilities.*
-Type: {', '.join(processed_data['type'])}  *Note: Pokémon can have multiple types, which affect their strengths and weaknesses in battles.*
+General Information:
+| Sprite | ID | Type | Abilities | Height | Weight |
+|---|---|---|---|---|---|
+| ![{processed_data['name']} Sprite]({processed_data['sprite']}) | {processed_data['id']} | {', '.join(processed_data['type'])} | {', '.join([f"{ability['name']} (Hidden: {ability['hidden']})" for ability in processed_data['abilities']])} | {processed_data['height']} | {processed_data['weight']} |
+
+Stats:
+{stats_header}
+{stats_separator}
+{stats_values}
+
 History and Pokémon Descriptions: {chr(10).join(processed_data['flavor_text_descriptions'])} *Note: History and Pokémon descriptions are often poetic and hyperbolic and may not be literal. As a professor in Pokémon studies, you should consider the broader implications of these descriptions.*
-Base Stat Total: {sum(processed_data['stats'].values())}
-Stats: {', '.join([f"{stat_name}: {stat_value}" for stat_name, stat_value in processed_data['stats'].items()])}
 
 Include the evolution chain of this Pokémon. If specific evolution conditions are known, include them in the description - especially if it requires a specific item, held item, time of day, or happiness level. If the Pokémon has multiple evolutions, list them all:
 {processed_evolution_data['base_form']} evolves into {', '.join([evo['name'] for evo in processed_evolution_data['evolutions']])} based on the following conditions:

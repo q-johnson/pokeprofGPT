@@ -10,8 +10,8 @@ current-functions:
         description: Retrieves locations where a Pokémon can be found, organized by game version.
     - name: get_pokemon_movelist
         description: Fetches the movelist of a Pokémon, grouped by version group and learn method.
-    - name: get_item
-        description: Retrieves details about a specific item, including its effects and associated Pokémon.
+    - name: get_egg_groups
+        description: Fetches details about a specific egg group, including the Pokémon that belong to it.
 author: q-johnson
 version: 0.0.8
 license: MIT License
@@ -25,7 +25,7 @@ def get_pokeapi(endpoint: str):
     if response.status_code == 200:
         return response.json()
     else:
-        raise Exception(f"Error fetching data from PokeAPI: {response.status_code}")
+        raise Exception(f"Error fetching data from PokeAPI: [{response.status_code}] {response.text}")
 
 def format_api_param(name: str) -> str:
     """

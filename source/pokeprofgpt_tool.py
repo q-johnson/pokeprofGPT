@@ -66,6 +66,9 @@ def get_pokemon_alternate_forms(pokemon_form_name: str):
     :param pokemon_name: Name of the Pokémon (case-insensitive).
     :return: JSON response containing alternate forms.
     """
+    if not isinstance(pokemon_form_name, str):
+        raise TypeError(f"Expected string for pokemon_form_name, got {type(pokemon_form_name)}")
+        
     formatted_name = format_api_param(pokemon_form_name)
     endpoint = f"pokemon-form/{formatted_name}"
     raw_data = get_pokeapi(endpoint)
@@ -83,9 +86,26 @@ def get_pokemon_alternate_forms(pokemon_form_name: str):
             "front_shiny": raw_data.get("sprites", {}).get("front_shiny", "No sprite available"),
             "front_shiny_female": raw_data.get("sprites", {}).get("front_shiny_female", "No sprite available"),
             "front_shiny_male": raw_data.get("sprites", {}).get("front_shiny_male", "No sprite available"),
-        },
-        "pokemon_type": [type_info["type"]["name"] for type_info in raw_data.get("types", [])]
+        }
     }
+
+    # Safely handle pokemon types - the structure might vary
+    pokemon_types = []
+    types_data = raw_data.get("types", [])
+    if types_data:
+        try:
+            pokemon_types = [type_info["type"]["name"] for type_info in types_data]
+        except (TypeError, KeyError):
+            # If we can't extract types with the expected structure, try an alternate approach
+            if isinstance(types_data, list):
+                for type_info in types_data:
+                    if isinstance(type_info, dict) and "type" in type_info:
+                        type_data = type_info["type"]
+                        if isinstance(type_data, dict) and "name" in type_data:
+                            pokemon_types.append(type_data["name"])
+    
+    form_data["pokemon_type"] = pokemon_types
+
     return form_data
 
 class Tools:
@@ -107,7 +127,6 @@ class Tools:
         endpoint_species = f"pokemon-species/{formatted_name}"
         raw_data_species = get_pokeapi(endpoint_species)
 
-
         # Process and return the relevant Pokémon details
         processed_data = {
             "name": raw_data_pokemon.get("name"),
@@ -128,7 +147,7 @@ class Tools:
             "is_baby": raw_data_species.get("is_baby", False),
             "flavor_text_descriptions": {entry["flavor_text"] for entry in raw_data_species.get("flavor_text_entries", []) if entry["language"]["name"] == "en"},
             "egg_groups": [egg_group["name"] for egg_group in raw_data_species.get("egg_groups", [])],
-            "forms": [forms["name"] for forms in raw_data_species.get("forms", [])]
+            "forms": [forms["name"] for forms in raw_data_pokemon.get("forms", [])] # currently not used, as the api does not provide alternate forms for all Pokémon
         }
 
         endpoint_evolution = f"evolution-chain/{raw_data_species.get('evolution_chain', {}).get('url', '').split('/')[-2]}"
@@ -180,7 +199,6 @@ Egg Groups Memberships: {', '.join(processed_data['egg_groups'])} *Note: Egg gro
 Legendary Status: {'Yes' if processed_data['is_legendary'] else 'No'} *Note: Only a few Pokémon are classified as legendary. Do not discuss the legendary status of any Pokémon that is not classified as such.*
 Mythical Status: {'Yes' if processed_data['is_mythical'] else 'No'} *Note: Mythical Pokémon are extremely rare and often event-exclusive. Do not discuss the mythical status of any Pokémon that is not classified as such.*
 Baby Status: {'Yes' if processed_data['is_baby'] else 'No'} *Note: Baby Pokémon are often pre-evolutions of other Pokémon and are typically smaller and less powerful. Do not discuss the baby status of any Pokémon that is not classified as such.*
-Alternate Forms: {', '.join(processed_data['forms'])} *Note: Some Pokémon have alternate forms that can change their appearance, stats, or abilities.
 """
     
     def get_ability_details(self, ability_name: str):

@@ -141,7 +141,7 @@ class Tools:
             "weight": f"{raw_data_pokemon.get('weight') / 10:.1f} kg",
             "stats": {stat["stat"]["name"]: stat["base_stat"] for stat in raw_data_pokemon.get("stats", [])},
             "type": [type_info["type"]["name"] for type_info in raw_data_pokemon.get("types", [])],
-            "abilities": [ability["ability"]["name"] for ability in raw_data_pokemon.get("abilities", [])],
+            "abilities": [{"name": ability["ability"]["name"], "hidden": ability.get("is_hidden", False)} for ability in raw_data_pokemon.get("abilities", [])],
             "is_legendary": raw_data_species.get("is_legendary", False),
             "is_mythical": raw_data_species.get("is_mythical", False),
             "is_baby": raw_data_species.get("is_baby", False),
@@ -160,7 +160,7 @@ class Tools:
         }
         process_evolution_chain(raw_data_evolution.get("chain", {}), processed_evolution_data["evolutions"])
 
-        # Process alternate forms
+        # Process alternate forms - data not used yet.
         alternate_forms_data = []
         for form_name in processed_data['forms']:
             form_info = get_pokemon_alternate_forms(form_name)
@@ -179,7 +179,7 @@ Sprite: ![{processed_data['name']} Sprite]({processed_data['sprite']})
 ID: {processed_data['id']}
 Height: {processed_data['height']}
 Weight: {processed_data['weight']}
-Abilities: {', '.join(processed_data['abilities'])}
+Abilities: {', '.join([f"{ability['name']} (Hidden: {ability['hidden']})" for ability in processed_data['abilities']])} *Note: Abilities can be hidden or regular. Hidden abilities are rare abilities.*
 Type: {', '.join(processed_data['type'])}  *Note: Pokémon can have multiple types, which affect their strengths and weaknesses in battles.*
 History and Pokémon Descriptions: {chr(10).join(processed_data['flavor_text_descriptions'])} *Note: History and Pokémon descriptions are often poetic and hyperbolic and may not be literal. As a professor in Pokémon studies, you should consider the broader implications of these descriptions.*
 Base Stat Total: {sum(processed_data['stats'].values())}
